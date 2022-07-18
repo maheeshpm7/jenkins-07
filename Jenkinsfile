@@ -1,19 +1,40 @@
-node {
-     def app 
-     stage('clone repository') {
-      checkout scm  
+pipeline {
+  environment {
+    imagename = "maheesh7/mahee007"
+    registryCredential = 'jenkins-new'
+    dockerImage = ''
+  }
+  agent any
+  stages {
+    stage('Cloning Git') {
+      steps {
+        git([url: 'https://github.com/maheeshpm7/jenkins-07.git', branch: 'main'])
+ 
+      }
     }
-     stage('Build docker Image'){
-      app = docker.build("maheesh7/mahee007")
+    stage('Building image') {
+      steps{
+        script {
+          dockerImage = docker.build imagename
+        }
+      }
     }
-     stage('Test Image'){
-       app.inside {
-         sh 'echo "TEST PASSED"'
-      }  
+    stage('Deploy Image') {
+      steps{
+        script {
+          docker.withRegistry( '', registryCredential ) {
+            dockerImage.push("$BUILD_NUMBER")
+             dockerImage.push('latest')
+          }
+        }
+      }
     }
-     stage('Push Image'){
-       docker.withRegistry('https://registry.hub.docker.com', 'git') {            
-       app.push("${env.BUILD_NUMBER}")            
-       app.push("latest")   
-   }
+    stage('Remove Unused docker image') {
+      steps{
+        sh "docker rmi $imagename:$BUILD_NUMBER"
+         sh "docker rmi $imagename:latest"
+ 
+      }
+    }
+  }
 }
